@@ -270,6 +270,11 @@ inline bool SplitParams(const std::string &value, std::unordered_map<std::string
   }
   return true;
 }
+
+/**
+ * @note
+ *   这里只解析files.list_sensor对应的字段，其他的url直接忽略并返回true.
+ */
 bool GetSensorParam(const std::list<std::string> &urls, std::vector<SensorParam>* sensor_param_vec) {
   std::string filename = "";
   for (auto& it : urls) {

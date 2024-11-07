@@ -78,6 +78,7 @@ class CNFrameInfo : private NonCopyable {
   CNS_IGNORE_DEPRECATED_PUSH
 
  private:
+  // note: 构造函数定义为private，禁止外部代码直接创建该类对象。确保外部代码只能通过CNFrameInfo::Create()创建对象。
   CNFrameInfo() = default;
 
  public:
@@ -108,8 +109,6 @@ class CNFrameInfo : private NonCopyable {
   /**
    * @brief Checks if DataFrame is valid or not.
    *
-   *
-   *
    * @return Returns true if frame is invalid, otherwise returns false.
    */
   bool IsInvalid() {
@@ -131,8 +130,6 @@ class CNFrameInfo : private NonCopyable {
   /**
    * @brief Gets index number which identifies stream.
    *
-   *
-   *
    * @return Index number.
    *
    * @note This is only used for distributing each stream data to the appropriate thread.
@@ -144,14 +141,14 @@ class CNFrameInfo : private NonCopyable {
   int64_t timestamp = -1;       /*!< The time stamp of this frame. */
   std::atomic<size_t> flags{0}; /*!< The mask for this frame, ``CNFrameFlag``. */
 
-  Collection collection;                                    /*!< Stored structured data.  */
+  Collection collection;                                    /*!< Stored structured data. */
   std::shared_ptr<cnstream::CNFrameInfo> payload = nullptr; /*!< CNFrameInfo instance of parent pipeline. */
 
  private:
   /**
    * The below methods and members are used by the framework.
    */
-  friend class Pipeline;
+  friend class Pipeline; // Pipeline类可以访问CNFrameInfo类的私有成员和方法
   mutable uint32_t channel_idx = kInvalidStreamIdx;  ///< The index of the channel, stream_index
   void SetModulesMask(uint64_t mask);
   uint64_t GetModulesMask();

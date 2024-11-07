@@ -51,6 +51,12 @@
 #include "profiler/trace_serialize_helper.hpp"
 #include "util.hpp"
 
+/** 
+ * @note
+ * 使用Google gflags库定义命令行参数
+ *   示例：
+ *      ./pro --data_path /path/to/video_files.txt
+ */
 DEFINE_string(data_path, "", "video file list.");
 DEFINE_string(data_name, "", "video file name.");
 DEFINE_int32(src_frame_rate, 25, "frame rate for send data");
@@ -539,8 +545,14 @@ int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   FLAGS_stderrthreshold = google::INFO;
   FLAGS_colorlogtostderr = true;
+  /**
+   * @note
+   *  SIGINT(Signal Interrupt)是中断信号，用户按下Ctrl+C时即发送该信号。
+   *  此处是将SIGINT信号的处理函数设置为SigIntHandler，当程序接收到SIGINT信号时调用该函数进行处理。
+   */
   signal(SIGINT, SigIntHandler);
 
+  // TODO: 这里会打印啥？？？ [CNStream CNS_LAUNCHER INFO] CNSTREAM VERSION: 7.1.0"
   LOGI(CNS_LAUNCHER) << "CNSTREAM VERSION: " << cnstream::VersionString();
 
   std::list<std::string> video_urls;

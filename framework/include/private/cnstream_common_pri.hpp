@@ -36,6 +36,11 @@
 #define CNS_DEPRECATED
 #endif
 
+/**
+ * @note 这里主要用来对废弃函数做警告设置，防止编译器产生相应的警告信息
+ * CNS_IGNORE_DEPRECATED_PUSH：临时禁用废弃警告
+ * CNS_IGNORE_DEPRECATED_POP: 恢复原有警告设置
+ */
 #if defined(__GNUC__)
 #define CNS_IGNORE_DEPRECATED_PUSH \
   _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
@@ -87,9 +92,13 @@ enum class CNCodecType {
  *
  * @brief NonCopyable is the abstraction of the class which has no ability to do copy and assign. It is always be used
  *        as the base class to disable copy and assignment.
+ * 
+ * @note NonCopyable类禁止拷贝构造和移动构造，禁止拷贝赋值和移动赋值操作，从而确保类的对象是唯一的且不能被复制或移动。
+ *       NonCopyable类常用于资源管理或者单例模式中。
  */
 class NonCopyable {
  protected:
+  // note: 构造析构定义为protected，用户不能显示调用的同时派生类能正常使用。
   /*!
    * @brief Constructs an instance with empty value.
    *
