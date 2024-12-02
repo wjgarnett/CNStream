@@ -98,6 +98,8 @@ struct StreamMsg {
  * To receive stream messages from the pipeline, you can define a class to inherit the
  * StreamMsgObserver class and call the ``Update`` function. The
  * observer instance is bounded to the pipeline using the Pipeline::SetStreamMsgObserver function .
+ * 
+ * StreamMsgObserver是pipeline的观察者
  *
  * @see Pipeline::SetStreamMsgObserver StreamMsg StreamMsgType.
  */
@@ -105,6 +107,7 @@ class StreamMsgObserver {
  public:
   /**
    * @brief Receives stream messages from a pipeline passively.
+   * 常用来pipeline跑完了或者遇到错误了发消息给应用层
    *
    * @param[in] msg The stream message from a pipeline.
    *
@@ -136,6 +139,7 @@ class Pipeline : private NonCopyable {
    * @return No return value.
    */
   explicit Pipeline(const std::string& name);
+
   /**
    * @brief A destructor to destruct one pipeline.
    *
@@ -144,12 +148,15 @@ class Pipeline : private NonCopyable {
    * @return No return value.
    */
   virtual ~Pipeline();
+
   /**
    * @brief Gets the pipeline's name.
    *
    * @return Returns the pipeline's name.
    */
   const std::string& GetName() const;
+
+  // 创建pipeline的三种方式：1.模块配置 2.图配置 3.json配置文件
   /**
    * @brief Builds a pipeline by module configurations.
    *
@@ -160,6 +167,7 @@ class Pipeline : private NonCopyable {
    */
   bool BuildPipeline(const std::vector<CNModuleConfig>& module_configs,
                      const ProfilerConfig& profiler_config = ProfilerConfig());
+  
   /**
    * @brief Builds a pipeline by graph configuration.
    *
@@ -168,6 +176,7 @@ class Pipeline : private NonCopyable {
    * @return Returns true if this function has run successfully. Otherwise, returns false.
    */
   bool BuildPipeline(const CNGraphConfig& graph_config);
+  
   /**
    * @brief Builds a pipeline from a JSON file.
    * You can learn to write a configuration file by looking at the description of CNGraphConfig.
@@ -180,6 +189,7 @@ class Pipeline : private NonCopyable {
    *
    */
   bool BuildPipelineByJSONFile(const std::string& config_file);
+  
   /**
    * @brief Starts a pipeline.
    * Starts data transmission in a pipeline.
@@ -189,18 +199,21 @@ class Pipeline : private NonCopyable {
    *         function did not run successfully in one of the modules, or the link modules failed.
    */
   bool Start();
+  
   /**
    * @brief Stops data transmissions in a pipeline.
    *
    * @return Returns true if this function has run successfully. Otherwise, returns false.
    */
   bool Stop();
+  
   /**
    * @brief The running status of a pipeline.
    *
    * @return Returns true if the pipeline is running. Returns false if the pipeline is not running.
    */
   bool IsRunning() const;
+  
   /**
    * @brief Gets a module in current pipeline by name.
    *
@@ -214,6 +227,7 @@ class Pipeline : private NonCopyable {
    *         the current pipeline. Otherwise, returns nullptr.
    */
   Module* GetModule(const std::string& module_name) const;
+  
   /**
    * @brief Gets the module configuration by the module name.
    *
@@ -225,18 +239,21 @@ class Pipeline : private NonCopyable {
    *         added to the current pipeline.
    */
   CNModuleConfig GetModuleConfig(const std::string& module_name) const;
+  
   /**
    * @brief Checks if profiling is enabled.
    *
    * @return Returns true if profiling is enabled.
    **/
   bool IsProfilingEnabled() const;
+  
   /**
    * @brief Checks if tracing is enabled.
    *
    * @return Returns true if tracing is enabled.
    **/
   bool IsTracingEnabled() const;
+  
   /**
    * @brief Provides data for the pipeline that is used in source module or the module transmitted by itself.
    *
@@ -252,12 +269,14 @@ class Pipeline : private NonCopyable {
    * @see Module::Process.
    */
   bool ProvideData(const Module* module, std::shared_ptr<CNFrameInfo> data);
+  
   /**
    * @brief Gets the event bus in the pipeline.
    *
    * @return Returns the event bus.
    */
   EventBus* GetEventBus() const;
+  
   /**
    * @brief Binds the stream message observer with a pipeline to receive stream message from this pipeline.
    *
@@ -268,6 +287,7 @@ class Pipeline : private NonCopyable {
    * @see StreamMsgObserver.
    */
   void SetStreamMsgObserver(StreamMsgObserver* observer);
+  
   /**
    * @brief Gets the stream message observer that has been bound with this pipeline.
    *
@@ -276,18 +296,21 @@ class Pipeline : private NonCopyable {
    * @see Pipeline::SetStreamMsgObserver.
    */
   StreamMsgObserver* GetStreamMsgObserver() const;
+  
   /**
    * @brief Gets this pipeline's profiler.
    *
    * @return Returns profiler.
    */
   PipelineProfiler* GetProfiler() const;
+  
   /**
    * @brief Gets this pipeline's tracer.
    *
    * @return Returns tracer.
    */
   PipelineTracer* GetTracer() const;
+  
   /**
    * @brief Checks if module is root node of pipeline or not.
    * The module name can be specified by two ways, see Pipeline::GetModule for detail.
@@ -297,6 +320,7 @@ class Pipeline : private NonCopyable {
    * @return Returns true if it's root node, otherwise returns false.
    **/
   bool IsRootNode(const std::string& module_name) const;
+  
   /**
    * @brief Checks if module is leaf node of pipeline.
    * The module name can be specified by two ways, see Pipeline::GetModule for detail.

@@ -53,7 +53,7 @@ class DAGAlgorithm {
   /**
    * @class DFSIterator
    *
-   * @brief DFSIterator is a class of iterator for traversing a DAG with DFS order.
+   * @brief DFSIterator is a class of iterator for traversing a DAG with DFS order(深度优先顺序).
    */
   class DFSIterator {
    public:
@@ -93,18 +93,21 @@ class DAGAlgorithm {
     std::vector<bool> visit_;
     const DAGAlgorithm* dag_ = nullptr;
   };  // class DFSIterator
+  
   /**
    * @brief Reserves vertex memory.
    *
    * @param[in] num_vertices The number of vertices.
    */
   void Reserve(size_t num_vertices);
+  
   /**
    * @brief Add vertex to DAG.
    *
    * @return Returns the vertex index that incremented from 0.
    */
   int AddVertex();
+  
   /**
    * @brief Add edge to DAG.
    *
@@ -114,6 +117,7 @@ class DAGAlgorithm {
    * @return Returns true for success. Returns false when the specified endpoint does not exist.
    */
   bool AddEdge(int vertexa, int vertexb);
+  
   /**
    * @brief Gets the indegree of the specified vertex.
    *
@@ -122,6 +126,7 @@ class DAGAlgorithm {
    * @return Returns the indegree of the specified vertex. -1 will be returned when the vertex not exist.
    */
   int GetIndegree(int vertex) const;
+  
   /**
    * @brief Gets the outdegree of the specified vertex.
    *
@@ -130,18 +135,22 @@ class DAGAlgorithm {
    * @return Returns the outdegree of the specified vertex. -1 will be returned when the vertex does not exist.
    */
   int GetOutdegree(int vertex) const;
+  
   /**
    * @brief Gets the head vertices.
+   * 对于一条有向边 𝑢→𝑣，tail vertex 是边的起点，head vertex 是边的终点。
    *
    * @return Returns head vertices.
    */
   std::vector<int> GetHeads() const;
+  
   /**
    * @brief Gets the tail vertices.
    *
    * @return Returns tail vertices.
    */
   std::vector<int> GetTails() const;
+  
   /**
    * @brief Topological sorting.
    *
@@ -150,6 +159,7 @@ class DAGAlgorithm {
    * and the second value stored unsorted vertices.
    */
   std::pair<std::vector<int>, std::vector<int>> TopoSort() const;
+  
   /**
    * @brief Gets the begin iterator in DFS order.
    *
@@ -158,6 +168,7 @@ class DAGAlgorithm {
    * @return Returns the begin iterator in DFS order.
    */
   DFSIterator DFSBegin() const;
+  
   /**
    * @brief Gets the start iterator with specified vertex in DFS order.
    *
@@ -166,6 +177,7 @@ class DAGAlgorithm {
    * @return Returns the start iterator with specified vertex in DFS order.
    */
   DFSIterator DFSBeginFrom(int vertex) const;
+  
   /**
    * @brief Gets the end iterator in DFS order.
    *

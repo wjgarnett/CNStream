@@ -62,6 +62,8 @@ class IModuleObserver {
  public:
   /**
    * @brief Notifies "data" after being processed by this module.
+   * Module的观察者主要是用来当该帧图像处理完了之后发送结果的.这里为啥不把结果发送也作为一个单独的module呢？二者有啥区别？
+   * IModuleObserver常用于当应用层需要获取module中的CNFrameInfo数据时。
    *
    * @param[in] data The frame that is notified to observer.
    *
@@ -106,6 +108,9 @@ class Module : private NonCopyable {
    * @param[in] observer An observer you defined.
    *
    * @return No return value.
+   * 
+   * Q:注册的观察者拿来干嘛用的呀？
+   * A:让应用程序观察每个module的处理结果啦。。。
    */
   void SetObserver(IModuleObserver *observer) {
     RwLockWriteGuard guard(observer_lock_);

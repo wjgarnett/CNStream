@@ -55,6 +55,8 @@ struct DataSourceParam {
  * @brief DataSource is a class to handle encoded input data.
  *
  * @note It is always the first module in a pipeline.
+ * 
+ * Q: DataSource作为首个模块，如何像下游模块传递数据呢？
  */
 class DataSource : public SourceModule, public ModuleCreator<DataSource> {
  public:

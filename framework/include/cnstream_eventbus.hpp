@@ -61,6 +61,8 @@ enum class EventType {
  * @enum EventHandleFlag
  *
  * @brief Enumeration variables describing the way how bus watchers handle an event.
+ * 
+ * Q： bus watcher是啥？？？
  */
 enum class EventHandleFlag {
   EVENT_HANDLE_NULL,         /*!< The event is not handled. */

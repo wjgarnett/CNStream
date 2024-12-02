@@ -83,6 +83,8 @@ int Module::DoTransmitData(std::shared_ptr<CNFrameInfo> data) {
     SetStreamRemoved(data->stream_id, false);
   }
   RwLockReadGuard guard(container_lock_);
+
+  // Q：？？？
   if (container_) {
     return container_->ProvideData(this, data);
   } else {

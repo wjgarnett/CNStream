@@ -142,6 +142,7 @@ class CNFrameInfo : private NonCopyable {
   std::atomic<size_t> flags{0}; /*!< The mask for this frame, ``CNFrameFlag``. */
 
   Collection collection;                                    /*!< Stored structured data. */
+  // Q:payload到底指啥 framework\include\cnstream_source.hpp line 219说是一个无用字段呐
   std::shared_ptr<cnstream::CNFrameInfo> payload = nullptr; /*!< CNFrameInfo instance of parent pipeline. */
 
  private:
@@ -149,6 +150,7 @@ class CNFrameInfo : private NonCopyable {
    * The below methods and members are used by the framework.
    */
   friend class Pipeline; // Pipeline类可以访问CNFrameInfo类的私有成员和方法
+  // channel_idx主要用于将数据分发到合适的线程
   mutable uint32_t channel_idx = kInvalidStreamIdx;  ///< The index of the channel, stream_index
   void SetModulesMask(uint64_t mask);
   uint64_t GetModulesMask();

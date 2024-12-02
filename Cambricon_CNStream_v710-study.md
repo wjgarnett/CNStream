@@ -24,3 +24,45 @@ CNStream 源码内部主要包含框架、内置模块两部分。
 
 
 echo "/sensor/id=0/type=6/mipi_dev=1/bus_id=0/sns_clk_id=0" >> files.list_sensor
+
+
+
+  bool BuildPipeline(const std::vector<CNModuleConfig>& module_configs,
+
+​                     const ProfilerConfig& profiler_config = ProfilerConfig());
+
+  bool BuildPipeline(const CNGraphConfig& graph_config);
+
+  bool BuildPipelineByJSONFile(const std::string& config_file);
+
+### Json构建pipeline
+
+```json
+{
+  // profiler_config字段主要用于性能统计及调优
+  "profiler_config" : {
+    "enable_profiling" : true,
+    "enable_tracing" : false
+  },
+
+  "subgraph:decode" : {
+    "config_path" : "../configs/decode_config.json",
+    "next_modules" : ["subgraph:object_detection"]
+  },
+
+  "subgraph:object_detection" : {
+    "config_path" : "../configs/__NN___object_detection___PLATFORM_PLACEHOLDER__.json",
+    "next_modules" : ["subgraph:osd_label_map_coco"]
+  },
+
+  "subgraph:osd_label_map_coco" : {
+    "config_path" : "../configs/osd_configs/osd_label_map_coco.json",
+    "next_modules" : ["subgraph:sinker"]
+  },
+
+  "subgraph:sinker" : {
+    "config_path" : "../configs/sinker_configs/__SINKER_PLACEHOLDER__.json"
+  }
+}
+```
+
