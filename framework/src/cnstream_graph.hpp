@@ -47,6 +47,11 @@ namespace cnstream {
  * @class DAGAlgorithm
  *
  * @brief DAGAlgorithm is class representing the DAG algorithm implementation.
+ * 
+ * @note DAGAlgorithm类描述了一个有向无环图（DAG）并提供了一些基本操作
+ *       DFSIterator类是其嵌套类，其实现了对DAG的深度优先搜索，设计为嵌套类有如下好处：
+ *        1.封装性&内聚性 2.访问权限控制 3.简化外部接口 4.避免命名冲突 5.清晰的类结构和设计意图 6.类型安全及可维护性
+ *       本质上，DFSIterator类是DAGAlgorithm类的一个工具类/辅助类
  */
 class DAGAlgorithm {
  public:
@@ -87,10 +92,12 @@ class DAGAlgorithm {
     int operator*() const;
 
    private:
+    // DAGAlgorithm类中成员函数的实现可以直接访问DFSIterator对象的私有成员（DFSBegin()/DFSBeginFrom会用到）
     friend class DAGAlgorithm;
-    explicit DFSIterator(const DAGAlgorithm* dag) : dag_(dag) {}
-    std::stack<int> vertex_stack_;
-    std::vector<bool> visit_;
+    // 构造函数定义成private，确保了只有其友元类DAGAlgorithm能实例化该对象
+    explicit DFSIterator(const DAGAlgorithm* dag) : dag_(dag) {} 
+    std::stack<int> vertex_stack_; // 待遍历的顶点（按遍历顺序动态存取）
+    std::vector<bool> visit_; // 记录每一个顶点是否被遍历
     const DAGAlgorithm* dag_ = nullptr;
   };  // class DFSIterator
   
@@ -142,6 +149,7 @@ class DAGAlgorithm {
    *
    * @return Returns head vertices.
    */
+  // NOTE: 这里的head节点指入度为0的节点，和DAG中的head vertex有区别
   std::vector<int> GetHeads() const;
   
   /**
@@ -149,6 +157,7 @@ class DAGAlgorithm {
    *
    * @return Returns tail vertices.
    */
+  // NOTE: 这里的tail节点指出度为0的节点，和DAG中的tail vertex有区别
   std::vector<int> GetTails() const;
   
   /**
@@ -158,6 +167,7 @@ class DAGAlgorithm {
    * Return value is a std::pair object, the first value stored sorted vertices
    * and the second value stored unsorted vertices.
    */
+  // NOTE: 拓扑排序在这里主要用来处理具有依赖关系的任务或进程
   std::pair<std::vector<int>, std::vector<int>> TopoSort() const;
   
   /**
@@ -186,7 +196,12 @@ class DAGAlgorithm {
   DFSIterator DFSEnd() const;
 
  private:
+
+  // NOTE: edges_是以邻接表（adjacency list）形式的边表，每个索引对应一个顶点，set<int> 表示该顶点的所有邻接节点。
+  //       使用 set 而不是 vector 可以确保没有重复的边。
   std::vector<std::set<int>> edges_;
+
+  // 存储每个顶点的入度数组（入度：有多少条边指向该顶点） 
   std::vector<int> indegrees_;
 };  // class DAGAlgorithm
 
@@ -257,8 +272,9 @@ class CNGraph {
     bool DAGStep();
     const CNGraph* graph_ = nullptr;
     DAGAlgorithm::DFSIterator dag_iter_;
-    std::shared_ptr<DFSIterator> subgraph_iter_;
-    std::shared_ptr<const CNGraph> subgraph_;
+    // 下面的声明可以实现迭代器对子图做迭代
+    std::shared_ptr<DFSIterator> subgraph_iter_; // 指向子图的迭代器
+    std::shared_ptr<const CNGraph> subgraph_; // 指向子图
   };  // class DFSIterator
   /**
    * @class CNNode
@@ -302,8 +318,8 @@ class CNGraph {
      */
     const CNGraph* GetRootGraph() const;
     CNModuleConfig config_;
-    const CNGraph* const graph_;
-    std::set<std::shared_ptr<CNNode>> next_;
+    const CNGraph* const graph_; // CNNode也可以关联一个CNGraph,即节点本身也可以是子图
+    std::set<std::shared_ptr<CNNode>> next_; // 该节点的tail节点集合？
   };  // class CNNode
 
   /**
@@ -437,8 +453,8 @@ class CNGraph {
   void FindHeadsAndTails();
 
  private:
-  std::map<std::string, ModuleNode> module_node_map_;
-  std::map<std::string, SubgraphNode> subgraph_node_map_;
+  std::map<std::string, ModuleNode> module_node_map_; // 节点为ModuleNode情形
+  std::map<std::string, SubgraphNode> subgraph_node_map_; // 节点为子图情形
   std::vector<std::string> vertex_map_to_node_name_;
   std::vector<std::shared_ptr<CNNode>> heads_, tails_;
   CNGraphConfig config_;
@@ -489,6 +505,7 @@ bool CNGraph<T>::DFSIterator::DAGStep() {
   subgraph_iter_ = nullptr;
   if (graph_->dag_algorithm_.DFSEnd() == dag_iter_) return true;
   auto node_name = graph_->vertex_map_to_node_name_[*dag_iter_];
+  // 处理节点是子图的情形
   if (IsSubgraphItem(node_name)) {
     subgraph_ =
         std::const_pointer_cast<const CNGraph<T>>(std::get<2>(graph_->subgraph_node_map_.find(node_name)->second));
@@ -507,6 +524,7 @@ template <typename T>
 typename CNGraph<T>::DFSIterator& CNGraph<T>::DFSIterator::operator++() {
   while (true) {
     if (graph_->dag_algorithm_.DFSEnd() == dag_iter_) break;
+    // 子图非空时说明当前正在处理节点为子图的情形，优先遍历子图
     if (subgraph_) {
       // current node is a subgraph
       ++*subgraph_iter_;
@@ -544,8 +562,16 @@ inline std::shared_ptr<typename CNGraph<T>::CNNode> CNGraph<T>::DFSIterator::ope
   return nullptr;
 }
 
+/**
+ * @brief CNGraph模板类对应的DFSIterator类->操作符重载
+ * 
+ * @return 返回类型为CNGraph<T>::CNNode*
+ * 
+ * @note 
+ */
 template <typename T>
 inline typename CNGraph<T>::CNNode* CNGraph<T>::DFSIterator::operator->() const {
+  // this->operator*()返回shared_ptr<>,get()方法去获取其裸指针
   return this->operator*().get();
 }
 
@@ -554,6 +580,10 @@ inline std::string CNGraph<T>::CNNode::GetName() const {
   return config_.name;
 }
 
+/**
+ * NOTE:
+ *  返回graph和node名拼接的全名,若graph存在parent graph会逐层递归拼接
+ */
 template <typename T>
 inline std::string CNGraph<T>::CNNode::GetFullName() const {
   return graph_->GetFullName() + "/" + GetName();
@@ -579,6 +609,7 @@ inline typename CNGraph<T>::DFSIterator CNGraph<T>::CNNode::DFSEnd() const {
   return GetRootGraph()->DFSEnd();
 }
 
+// 俄罗斯套娃里的第一个套娃
 template <typename T>
 const CNGraph<T>* CNGraph<T>::CNNode::GetRootGraph() const {
   const CNGraph* root_graph = graph_;
@@ -600,7 +631,7 @@ inline bool IsNodeNameValid(const std::string& name) {
 
 inline std::string GetRealPath(const std::string& path) {
   char out[PATH_MAX] = {'\0'};
-  char* ret = realpath(path.c_str(), out);
+  char* ret = realpath(path.c_str(), out); // 获取文件绝对路径
   if (NULL == ret) {
     LOGE(CORE) << "Get real path failed, error msg: " << strerror(errno) << ". Origin path str: " << path;
     return "";
@@ -636,13 +667,14 @@ template <typename T>
 bool CNGraph<T>::Init() {
   Clear();
   // subgraph analysis loop detect
-  static thread_local std::set<std::string> subgraph_paths;
+  // subgraph_paths是静态线程局部变量，每个线程都有自己独立的subgraph_paths且互不干扰
+  static thread_local std::set<std::string> subgraph_paths; 
   if (nullptr == parent_graph_) {
     // root graph, init subgraph_paths
     subgraph_paths.clear();
   }
 
-  dag_algorithm_.Reserve(config_.module_configs.size() + config_.subgraph_configs.size());
+  dag_algorithm_.Reserve(config_.module_configs.size() + config_.subgraph_configs.size()); // 图的节点数
   // insert vertices
   for (const auto& module_config : config_.module_configs)
     if (!AddVertex(module_config)) return false;
@@ -930,7 +962,7 @@ bool CNGraph<T>::InitEdges() {
   // edges head is a module
   for (const auto& node_pair : module_node_map_) {
     auto cur_node = node_pair.second;
-    const std::set<std::string>& next = cur_node.second->config_.next;
+    const std::set<std::string>& next = cur_node.second->config_.next; // 所有下游节点名
     for (const auto& next_node_name : next) {
       if (IsSubgraphItem(next_node_name)) {
         // module->subgraph

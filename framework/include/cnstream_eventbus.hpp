@@ -62,6 +62,8 @@ enum class EventType {
  *
  * @brief Enumeration variables describing the way how bus watchers handle an event.
  * 
+ * EventHandleFlag描述BusWatcher如何处理了对应的事件。
+ * 
  * Q： bus watcher是啥？？？
  */
 enum class EventHandleFlag {

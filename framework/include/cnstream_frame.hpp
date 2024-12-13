@@ -100,7 +100,7 @@ class CNFrameInfo : private NonCopyable {
   /**
    * @brief Checks whether DataFrame is removed or not.
    *
-   * @return Returns true if the frame is EOS. Returns false if the frame is not EOS.
+   * @return Returns true if the frame is removed. Returns false if the frame is not removed.
    */
   bool IsRemoved() {
     return (flags & static_cast<size_t>(cnstream::CNFrameFlag::CN_FRAME_FLAG_REMOVED)) ? true : false;
@@ -124,6 +124,8 @@ class CNFrameInfo : private NonCopyable {
    *
    * @note This is only used for distributing each stream data to the appropriate thread.
    * We do not recommend SDK users to use this API because it will be removed later.
+   * 
+   * 该接口用于将数据分配给相对应线程，属于framework内部实现，不应该暴露给用户。
    */
   void SetStreamIndex(uint32_t index) { channel_idx = index; }
 
@@ -134,6 +136,8 @@ class CNFrameInfo : private NonCopyable {
    *
    * @note This is only used for distributing each stream data to the appropriate thread.
    * We do not recommend SDK users to use this API because it will be removed later.
+   * 
+   * 该接口用于将数据分配给相对应线程，属于framework内部实现，不应该暴露给用户。
    */
   uint32_t GetStreamIndex() const { return channel_idx; }
 
@@ -158,7 +162,10 @@ class CNFrameInfo : private NonCopyable {
 
   RwLock mask_lock_;
   /* Identifies which modules have processed this data */
-  uint64_t modules_mask_ = 0;
+  // modules_mask_每一个bit的含义：
+  //  1：data无需/已经被对应module处理过
+  //  0: data尙需被对应module处理/pipepline中无对应moduel
+  uint64_t modules_mask_ = 0; 
 };
 
 /*!

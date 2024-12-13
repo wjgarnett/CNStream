@@ -148,6 +148,7 @@ struct ProfilerConfig : public CNConfigBase {
  * @endcode
  */
 struct CNModuleConfig : public CNConfigBase {
+  // QUESTION: name字段没在json文件中，这里起标识符作用
   std::string name;  ///< The name of the module.
   std::map<std::string, std::string>
       parameters;   ///< The key-value pairs. The pipeline passes this value to the CNModuleConfig::name module.
@@ -185,6 +186,7 @@ struct CNModuleConfig : public CNConfigBase {
  * @endcode
  */
 struct CNSubgraphConfig : public CNConfigBase {
+  // QUESTION: name字段没在json文件中，这里起标识符作用
   std::string name;            ///< The name of the subgraph.
   std::string config_path;     ///< The path of configuration file.
   std::set<std::string> next;  ///< The name of the downstream modules/subgraphs.

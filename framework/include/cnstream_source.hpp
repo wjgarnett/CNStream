@@ -47,6 +47,7 @@ class SourceHandler;
  */
 class SourceModule : public Module {
  public:
+  
   /**
    * @brief Constructs a source module.
    *
@@ -55,12 +56,14 @@ class SourceModule : public Module {
    * @return No return value.
    */
   explicit SourceModule(const std::string &name) : Module(name) { hasTransmit_.store(1); }
+  
   /**
    * @brief Destructs a source module.
    *
    * @return No return value.
    */
   virtual ~SourceModule() { RemoveSources(); }
+  
   /**
    * @brief Adds one stream to DataSource module. This function should be called after pipeline starts.
    *
@@ -69,14 +72,16 @@ class SourceModule : public Module {
    * @retval Returns 0 for success, otherwise returns -1.
    */
   int AddSource(std::shared_ptr<SourceHandler> handler);
+  
   /**
-   * @brief Destructs a source module.
+   * @brief Get source handler with given stream id.
    *
    * @param[in] stream_id The stream identifier.
    *
    * @return Returns the handler of the stream.
    */
   std::shared_ptr<SourceHandler> GetSourceHandler(const std::string &stream_id);
+  
   /**
    * @brief Removes one stream from ::DataSource module with given handler. This function should be called before
    * pipeline stops.
@@ -90,6 +95,7 @@ class SourceModule : public Module {
    * all cached frames are processed.
    */
   int RemoveSource(std::shared_ptr<SourceHandler> handler, bool force = false);
+  
   /**
    * @brief Removes one stream from DataSource module with given the stream identification. This function should be
    * called before pipeline stops.
@@ -103,6 +109,7 @@ class SourceModule : public Module {
    * all cached frames are processed.
    */
   int RemoveSource(const std::string &stream_id, bool force = false);
+  
   /**
    * @brief Removes all streams from DataSource module.
    *
@@ -122,6 +129,7 @@ class SourceModule : public Module {
 #endif
 
   friend class SourceHandler;
+
   /**
    * @brief Gets the stream index with the given stream identifier.
    *
@@ -130,6 +138,7 @@ class SourceModule : public Module {
    * @return Returns the stream index.
    */
   uint32_t GetStreamIndex(const std::string &stream_id);
+  
   /**
    * @brief Gives back the stream index to pipeline.
    *
@@ -138,6 +147,7 @@ class SourceModule : public Module {
    * @return No return value.
    */
   void ReturnStreamIndex(const std::string &stream_id);
+  
   /**
    * @brief Transmits data to next stage(s) of the pipeline.
    *
@@ -148,6 +158,7 @@ class SourceModule : public Module {
   bool SendData(std::shared_ptr<CNFrameInfo> data);
 
  private:
+  
   int Process(std::shared_ptr<CNFrameInfo> data) override {
     (void)data;
     LOGE(CORE) << "As a source module, Process() should not be invoked\n";
@@ -165,6 +176,7 @@ class SourceModule : public Module {
  */
 class SourceHandler : private NonCopyable {
  public:
+  
   /**
    * @brief Constructs a source handler.
    *
@@ -178,6 +190,7 @@ class SourceHandler : private NonCopyable {
       stream_index_ = module_->GetStreamIndex(stream_id_);
     }
   }
+  
   /**
    * @brief Destructs a source module.
    *
@@ -188,30 +201,39 @@ class SourceHandler : private NonCopyable {
       module_->ReturnStreamIndex(stream_id_);
     }
   }
+  
   /**
    * @brief Opens a decoder.
    *
    * @return Returns true if a decoder is opened successfully, otherwise returns false.
    */
   virtual bool Open() = 0;
+  
   /**
    * @brief Closes a decoder.
    *
    * @return No return value.
    */
   virtual void Close() = 0;
+  
   /**
    * @brief Stops a decoder. The Close() function should be called afterwards.
    *
    * @return No return value.
+   * 
+   * @note 先调用Stop,再调用Close.
+   * 
+   * QUESTION: 这里感觉命名还是有点歧义，Open函数里是不是已经包含了Start()呢？
    */
   virtual void Stop() {}
+  
   /**
    * @brief Gets the stream identification.
    *
    * @return Returns the name of stream.
    */
   std::string GetStreamId() const { return stream_id_; }
+  
   /**
    * @brief Creates the context of ``CNFameInfo`` .
    *
@@ -227,6 +249,7 @@ class SourceHandler : private NonCopyable {
     }
     return data;
   }
+  
   /**
    * @brief Sends data to next module.
    *
@@ -242,7 +265,7 @@ class SourceHandler : private NonCopyable {
   }
 
  protected:
-  SourceModule *module_ = nullptr;
+  SourceModule *module_ = nullptr; // SourceHandler属于哪个SourceModule
   mutable std::string stream_id_;
   uint32_t stream_index_ = kInvalidStreamIdx;
 };

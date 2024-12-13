@@ -74,6 +74,7 @@ Pipeline::Pipeline(const std::string& name) : name_(name) {
 Pipeline::~Pipeline() {
   running_ = false;
   exit_msg_loop_ = true;
+  // 确保线程smsg_thread_在退出之前正确地等待并完成
   if (smsg_thread_.joinable()) {
     smsg_thread_.join();
   }
@@ -99,7 +100,7 @@ bool Pipeline::BuildPipeline(const CNGraphConfig& graph_config) {
   // generate parant mask for all nodes and route mask for head nodes.
   GenerateModulesMask();
 
-  // This call must after GenerateModulesMask called,
+  // This call must after GenerateModulesMask called,(应该是需要用到各module中设置的掩码信息)
   profiler_.reset(
       new PipelineProfiler(graph_->GetConfig().profiler_config, GetName(), modules, GetSortedModuleNames()));
 
@@ -132,7 +133,8 @@ bool Pipeline::Start() {
   }
 
   running_.store(true);
-  event_bus_->Start();
+
+  event_bus_->Start(); 
 
   // start data transmit
   for (auto node = graph_->DFSBegin(); node != graph_->DFSEnd(); ++node) {
@@ -202,6 +204,10 @@ CNModuleConfig Pipeline::GetModuleConfig(const std::string& module_name) const {
   return {};
 }
 
+/**
+ * NOTE: 
+ *  Pipeline::ProvideData()是由框架传输数据的具体代码实现
+ */
 bool Pipeline::ProvideData(const Module* module, std::shared_ptr<CNFrameInfo> data) {
   // check running.
   if (!IsRunning()) {
@@ -218,6 +224,7 @@ bool Pipeline::ProvideData(const Module* module, std::shared_ptr<CNFrameInfo> da
     return false;
   }
   // data can only created by root nodes.
+  // TODO: 不理解下面这行判断是什么及其意图
   if (!data->GetModulesMask() && module->context_->parent_nodes_mask) {
     LOGE(CORE) << "Provide data to pipeline [" << GetName() << "] failed, "
                << "Data created by module named [" << module->GetName() << "]. "
@@ -245,14 +252,18 @@ bool Pipeline::CreateModules(std::vector<std::shared_ptr<Module>>* modules) {
   for (auto node_iter = graph_->DFSBegin(); node_iter != graph_->DFSEnd(); ++node_iter) {
     const CNModuleConfig& config = node_iter->GetConfig();
     // use GetFullName with a graph name prefix to create modules to prevent nodes with the same name in subgraphs.
-    Module* module = ModuleFactory::Instance()->Create(config.class_name, node_iter->GetFullName());
+    // NOTE: Create()其实是在map中查找对应的类并通过构造函数创建其实例，反射已经将类注册到map中
+    Module* module = ModuleFactory::Instance()->Create(config.class_name, node_iter->GetFullName()); 
     if (!module) {
       LOGE(CORE) << "Create module failed, module name : [" << config.name << "], class name : [" << config.class_name
                  << "].";
       return false;
     }
-    module->context_ = &node_iter->data;
-    node_iter->data.node = *node_iter;
+    // Pipeline是Module的友元，这里可以直接访问module的私有成员
+    // graph_ 是 std::unique_ptr<CNGraph<NodeContext>> 类型
+    // node_iter 是 CNGraph<NodeContext>::DFSIterator 类型，它指向的NodeContext
+    module->context_ = &node_iter->data; // module类的context_是CNGraph<NodeContext>图数据结构中的一个节点
+    node_iter->data.node = *node_iter; // 这里确实是在循环引用，需要使用weak_ptr
     node_iter->data.parent_nodes_mask = 0;
     node_iter->data.route_mask = 0;
     node_iter->data.module = std::shared_ptr<Module>(module);
@@ -271,11 +282,15 @@ std::vector<std::string> Pipeline::GetSortedModuleNames() {
   return sorted_module_names_;
 }
 
+/**
+ * @brief 为每个节点设置其父节点掩码,为head节点设置其路由掩码
+ */
 void Pipeline::GenerateModulesMask() {
   // parent mask helps to determine whether the data has passed all the parent nodes.
   for (auto cur_node = graph_->DFSBegin(); cur_node != graph_->DFSEnd(); ++cur_node) {
     const auto& next_nodes = cur_node->GetNext();
     for (const auto& next : next_nodes) {
+      // 设置next节点的父节点掩码
       next->data.parent_nodes_mask |= 1UL << cur_node->data.module->GetId();
     }
   }
@@ -284,6 +299,7 @@ void Pipeline::GenerateModulesMask() {
   // consider the case of multiple head nodes. (multiple source modules)
   for (auto head : graph_->GetHeads()) {
     for (auto iter = head->DFSBegin(); iter != head->DFSEnd(); ++iter) {
+      // 设置head节点的路由掩码
       head->data.route_mask |= 1UL << iter->data.module->GetId();
     }
   }
@@ -291,6 +307,7 @@ void Pipeline::GenerateModulesMask() {
 
 bool Pipeline::CreateConnectors() {
   for (auto node_iter = graph_->DFSBegin(); node_iter != graph_->DFSEnd(); ++node_iter) {
+    // head节点无需Connector
     if (node_iter->data.parent_nodes_mask) {  // not a head node
       const auto& config = node_iter->GetConfig();
       // check if parallelism and max_input_queue_size is valid.
@@ -326,6 +343,8 @@ void Pipeline::OnProcessEnd(NodeContext* context, const std::shared_ptr<CNFrameI
                                                      std::make_pair(data->stream_id, data->timestamp));
   context->module->NotifyObserver(data);
 }
+
+// QUESTION:为啥OnProcessFailed/OnDataInvalid/OnEos实现中消息/事件传递方式都不一样，为什么要这么设计呢？？？
 
 void Pipeline::OnProcessFailed(NodeContext* context, const std::shared_ptr<CNFrameInfo>& data, int ret) {
   auto module_name = context->module->GetName();
@@ -382,9 +401,12 @@ void Pipeline::TransmitData(NodeContext* context, const std::shared_ptr<CNFrameI
     OnDataInvalid(context, data);
     return;
   }
+  // 给head节点(root node)设置其需要路由的module mask
   if (!context->parent_nodes_mask) {
     // root node
     // set mask to 1 for never touched modules, for case which has multiple source modules.
+    // 只有一个head节点情形时，异或操作刚好将data无需流向的节点设置为1
+    // QUESTION: 有多个root node/source modules会咋样呀，啥时候可能有多个source modules呢（好像暂时不需要考虑这个情形）？
     data->SetModulesMask(all_modules_mask_ ^ context->route_mask);
   }
   if (data->IsEos()) {
@@ -394,9 +416,12 @@ void Pipeline::TransmitData(NodeContext* context, const std::shared_ptr<CNFrameI
     if (IsStreamRemoved(data->stream_id)) return;
   }
 
-  auto node = context->node.lock();
+  // weak_ptr::lock(): 尝试将weak_ptr转换为shared_ptr
+  auto node = context->node.lock(); 
   auto module = context->module;
-  const uint64_t cur_mask = data->MarkPassed(module.get());
+  // cur_mask:无需/已路由节点已设置为1
+  const uint64_t cur_mask = data->MarkPassed(module.get()); 
+  // 是否路由完所有节点
   const bool passed_by_all_modules = PassedByAllModules(cur_mask);
 
   if (passed_by_all_modules) {
@@ -406,6 +431,7 @@ void Pipeline::TransmitData(NodeContext* context, const std::shared_ptr<CNFrameI
 
   // transmit to next nodes
   for (auto next_node : node->GetNext()) {
+    // 这个判断能确保data已经流过next_node所有父节点
     if (!PassedByAllParentNodes(&next_node->data, cur_mask)) continue;
     auto next_module = next_node->data.module;
     auto connector = next_node->data.connector;
@@ -418,7 +444,7 @@ void Pipeline::TransmitData(NodeContext* context, const std::shared_ptr<CNFrameI
     int retry_cnt = 1;
     while (!connector->IsStopped() && connector->PushDataBufferToConveyor(conveyor_idx, data) == false) {
       std::this_thread::sleep_for(std::chrono::milliseconds(5 * retry_cnt));
-      retry_cnt = std::min(retry_cnt * 2, 10);
+      retry_cnt = std::min(retry_cnt * 2, 10); // retry_cnt: 1, 2, 4, 8, 10, 10, ...
     }  // while try push
   }  // loop next nodes
 }
@@ -440,9 +466,10 @@ void Pipeline::TaskLoop(NodeContext* context, uint32_t conveyor_idx) {
     }
 
     OnProcessStart(context, data);
-    int ret = module->DoProcess(data);
+    int ret = module->DoProcess(data); 
     if (ret < 0) OnProcessFailed(context, data, ret);
 
+    // 让当前线程主动放弃 CPU 时间片，允许其他线程运行。这个操作有助于提升多线程程序的效率，避免一个线程占用过多时间片。
     std::this_thread::yield();
   }  // while process loop
 }
@@ -455,7 +482,7 @@ EventHandleFlag Pipeline::DefaultBusWatch(const Event& event) {
       smsg.type = StreamMsgType::ERROR_MSG;
       smsg.module_name = event.module_name;
       smsg.stream_id = event.stream_id;
-      UpdateByStreamMsg(smsg);
+      UpdateByStreamMsg(smsg); // 将module发给应用层的event包装成StreamMsg交给应用层处理
       LOGE(CORE) << "[" << event.module_name << "]: " << event.message;
       ret = EventHandleFlag::EVENT_HANDLE_STOP;
       break;
@@ -500,6 +527,7 @@ void Pipeline::UpdateByStreamMsg(const StreamMsg& msg) {
 void Pipeline::StreamMsgHandleFunc() {
   while (!exit_msg_loop_) {
     StreamMsg msg;
+    // 当从队列中取到msg或者exit_msg_loop_为真时退出while循环
     while (!exit_msg_loop_ && !msgq_.WaitAndTryPop(msg, std::chrono::milliseconds(200))) {
     }
 
@@ -541,6 +569,7 @@ uint32_t GetMaxModuleNumber() {
   return sizeof(uint64_t) * 8;
 }
 
+// 获取stream id所对应的idx, 若未分配idx将自动为stream id分配idx
 uint32_t IdxManager::GetStreamIndex(const std::string& stream_id) {
   std::lock_guard<std::mutex> guard(id_lock);
   auto search = stream_idx_map.find(stream_id);
@@ -548,9 +577,10 @@ uint32_t IdxManager::GetStreamIndex(const std::string& stream_id) {
     return search->second;
   }
 
+  // 遍历所有可能的流索引，寻找一个空闲的
   for (uint32_t i = 0; i < GetMaxStreamNumber(); i++) {
     if (!stream_bitset[i]) {
-      stream_bitset.set(i);
+      stream_bitset.set(i); // 将stream_bitset[i]设置为1
       stream_idx_map[stream_id] = i;
       return i;
     }
@@ -558,6 +588,7 @@ uint32_t IdxManager::GetStreamIndex(const std::string& stream_id) {
   return kInvalidStreamIdx;
 }
 
+// 回收stream id所占用的idx
 void IdxManager::ReturnStreamIndex(const std::string& stream_id) {
   std::lock_guard<std::mutex> guard(id_lock);
   auto search = stream_idx_map.find(stream_id);
@@ -568,10 +599,13 @@ void IdxManager::ReturnStreamIndex(const std::string& stream_id) {
   if (stream_idx >= GetMaxStreamNumber()) {
     return;
   }
-  stream_bitset.reset(stream_idx);
+  stream_bitset.reset(stream_idx); // 将stream_bitset[stream_idx]重置为0
   stream_idx_map.erase(search);
 }
 
+/**
+ * 找到未被分配的id,将其分配给新的module
+ */
 size_t IdxManager::GetModuleIdx() {
   std::lock_guard<std::mutex> guard(id_lock);
   for (size_t i = 0; i < GetMaxModuleNumber(); i++) {
@@ -583,6 +617,7 @@ size_t IdxManager::GetModuleIdx() {
   return kInvalidModuleId;
 }
 
+// 回收占用id为id_的module
 void IdxManager::ReturnModuleIdx(size_t id_) {
   std::lock_guard<std::mutex> guard(id_lock);
   if (id_ >= GetMaxModuleNumber()) {

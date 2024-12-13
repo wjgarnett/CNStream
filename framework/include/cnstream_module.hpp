@@ -62,12 +62,15 @@ class IModuleObserver {
  public:
   /**
    * @brief Notifies "data" after being processed by this module.
-   * Module的观察者主要是用来当该帧图像处理完了之后发送结果的.这里为啥不把结果发送也作为一个单独的module呢？二者有啥区别？
+   * 
    * IModuleObserver常用于当应用层需要获取module中的CNFrameInfo数据时。
    *
    * @param[in] data The frame that is notified to observer.
    *
    * @return No return value.
+   * 
+   * QUESTION:
+   *  Module的观察者主要是用来当该帧图像处理完了之后发送结果的.这里为啥不把结果发送也作为一个单独的module呢？二者有啥区别？
    */
   virtual void Notify(std::shared_ptr<CNFrameInfo> data) = 0;
   /**
@@ -96,12 +99,14 @@ class Module : private NonCopyable {
    * @return No return value.
    */
   explicit Module(const std::string &name) : name_(name) {}
+  
   /**
    * @brief Destructor. A destructor to destruct module instance.
    *
    * @return No return value.
    */
   virtual ~Module();
+  
   /**
    * @brief Registers an observer to the module.
    *
@@ -116,6 +121,7 @@ class Module : private NonCopyable {
     RwLockWriteGuard guard(observer_lock_);
     observer_ = observer;
   }
+  
   /**
    * @brief Opens resources for a module.
    *
@@ -126,6 +132,8 @@ class Module : private NonCopyable {
    * @note You do not need to call this function by yourself. This function is called
    *       by pipeline automatically when the pipeline is started. The pipeline calls the ``Process`` function
    *       of this module automatically after the ``Open`` function is done.
+   * 
+   *       Pipeline::Start()中先调用Module::Open(), 然后通过调用Pipeline::TaskLoop()调用Module::Process().
    */
   virtual bool Open(ModuleParamSet param_set) = 0;
 
@@ -137,6 +145,8 @@ class Module : private NonCopyable {
    * @note You do not need to call this function by yourself. This function is called
    *       by pipeline automatically when the pipeline is stopped. The pipeline calls the ``Close`` function
    *       of this module automatically after the ``Open`` and ``Process`` functions are done.
+   * 
+   *       Pipeline::Stop()调用Moduel::Close()
    */
   virtual void Close() = 0;
 
@@ -147,6 +157,8 @@ class Module : private NonCopyable {
    *
    * @retval >=0: The data is processed successfully.
    * @retval <0: Pipeline will post an event with the EVENT_ERROR event type and the return number.
+   * 
+   * @note retval为0是pipeline传data,retval>0是module自身传data.(待确认)
    */
   virtual int Process(std::shared_ptr<CNFrameInfo> data) = 0;
 
@@ -168,6 +180,7 @@ class Module : private NonCopyable {
 
   /**
    * @brief Posts an event to the pipeline.
+   *        Module实例通过pipeline的EventBus传递Event给pipeline
    *
    * @param[in] type The type of an event.
    * @param[in] msg The event message string.

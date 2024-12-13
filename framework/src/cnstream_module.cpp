@@ -51,6 +51,7 @@ void Module::SetContainer(Pipeline* container) {
 }
 
 size_t Module::GetId() {
+  // 确保只有效分配一次id,保证其唯一性
   if (id_ == kInvalidModuleId) {
     RwLockReadGuard guard(container_lock_);
     if (container_) id_ = container_->GetModuleIdx();
@@ -60,6 +61,7 @@ size_t Module::GetId() {
 
 bool Module::PostEvent(EventType type, const std::string& msg) {
   Event event;
+  // TODO:这里为啥没有指定thread_id字段？
   event.type = type;
   event.message = msg;
   event.module_name = name_;
@@ -77,22 +79,34 @@ bool Module::PostEvent(Event e) {
   }
 }
 
+/**
+ * NOTE: Module处理数据向下游传输有两种方式：
+ *  1.由框架负责传输，DoTransmitData()是默认的数据传输实现
+ *  2.由Module::process负责传输，此时Module::hasTransmit_为true
+ */
 int Module::DoTransmitData(std::shared_ptr<CNFrameInfo> data) {
   if (data->IsEos() && data->payload && IsStreamRemoved(data->stream_id)) {
     // FIMXE
+    // NOTE: 这里应该认为stream_id到解码结束不可用，需要将其从map中删除了
     SetStreamRemoved(data->stream_id, false);
   }
   RwLockReadGuard guard(container_lock_);
 
-  // Q：？？？
+  // TODO: 啥意思？
   if (container_) {
     return container_->ProvideData(this, data);
   } else {
+    // TODO:啥时候Module实例不属于任何container_???
     if (HasTransmit()) NotifyObserver(data);
     return 0;
   }
 }
 
+/**
+ * NOTE:
+ *  DoProcess由基类实现，其具体实现将调用派生类的Process方法
+ *  DoProcess将根据Module是否具有传输data的权利及流状态情形做适当处理
+ */
 int Module::DoProcess(std::shared_ptr<CNFrameInfo> data) {
   bool removed = IsStreamRemoved(data->stream_id);
   if (!removed) {
@@ -103,7 +117,7 @@ int Module::DoProcess(std::shared_ptr<CNFrameInfo> data) {
     }
   }
 
-  if (!HasTransmit()) {
+  if (!HasTransmit()) { // pipeline传输data情形
     if (!data->IsEos()) {
       if (!removed) {
         int ret = Process(data);
@@ -116,15 +130,16 @@ int Module::DoProcess(std::shared_ptr<CNFrameInfo> data) {
       this->OnEos(data->stream_id);
       return DoTransmitData(data);
     }
-  } else {
+  } else { // module传输data情形
     if (removed) {
       data->flags |= static_cast<size_t>(CNFrameFlag::CN_FRAME_FLAG_REMOVED);
     }
-    return Process(data);
+    return Process(data); // TODO:此处Module有传输data的权利应该是直接在Process内实现了传输?
   }
   return -1;
 }
 
+// NOTE: Module::TransmitData方法似乎没有直接被调用啊，SourceModule::SendData才会调用该方法
 bool Module::TransmitData(std::shared_ptr<CNFrameInfo> data) {
   if (!HasTransmit()) {
     return true;

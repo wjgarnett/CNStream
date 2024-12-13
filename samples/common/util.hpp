@@ -41,6 +41,7 @@ size_t GetFileSize(const std::string &filename);
 void PrintPipelinePerformance(const std::string &prefix_str, const cnstream::PipelineProfile &profile);
 int GetSensorNumber(const std::list<std::string> &urls);
 
+// QUESTION: 这些字段各自的作用是啥？
 struct SensorParam {
   int id = 0;  // optional
   int type = 0;

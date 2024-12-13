@@ -117,7 +117,7 @@ class Collection : public NonCopyable {
    */
   bool HasValue(const std::string& tag);
 
-#if !defined(_LIBCPP_NO_RTTI)
+#if !defined(_LIBCPP_NO_RTTI) // RTTI:运行时类型信息
   /**
    * @brief Gets type information for data tagged by `tag`.
    *

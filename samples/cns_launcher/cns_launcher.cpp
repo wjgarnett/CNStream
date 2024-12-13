@@ -552,7 +552,7 @@ int main(int argc, char **argv) {
    */
   signal(SIGINT, SigIntHandler);
 
-  // TODO: 这里会打印啥？？？ [CNStream CNS_LAUNCHER INFO] CNSTREAM VERSION: 7.1.0"
+  // 打印：[CNStream CNS_LAUNCHER INFO] CNSTREAM VERSION: 7.1.0"
   LOGI(CNS_LAUNCHER) << "CNSTREAM VERSION: " << cnstream::VersionString();
 
   std::list<std::string> video_urls;
@@ -576,6 +576,10 @@ int main(int argc, char **argv) {
   }
   uint32_t sensor_num = parsed_sensor_param.size() > kMaxSensorNum ? kMaxSensorNum : parsed_sensor_param.size();
 
+  /**
+   * NOTE:
+   *  下面这段代码主要是针对CE3226平台的设置，可直接跳到build pipeline段
+   */
   // initialize cnedk
   //
   CnedkSensorParams sensor_params[kMaxSensorNum];

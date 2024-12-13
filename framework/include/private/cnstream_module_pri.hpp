@@ -43,6 +43,7 @@ namespace cnstream {
  * @class ModuleFactory
  *
  * @brief Provides functions to create instances with the ``ModuleClassName``and ``moduleName`` parameters.
+ *        ModuleFactory是一个单例模式，提供了
  *
  * @note  ModuleCreator, ModuleFactory, and ModuleCreatorWorker:
  *        Implements reflection mechanism to create a module instance dynamically with the ``ModuleClassName`` and
@@ -64,6 +65,7 @@ class ModuleFactory {
     }
     return (factory_);
   }
+
   /**
    * @brief Destructor. A destructor to destruct ModuleFactory.
    *
@@ -85,6 +87,9 @@ class ModuleFactory {
     if (nullptr == pFunc) {
       return (false);
     }
+    // map_.insert()的返回类型是pair<iterator, bool>类型：
+    //  first指向插入元素的位置（若插入成功
+    //  second表示其是否插入成功
     bool ret = map_.insert(std::make_pair(strTypeName, pFunc)).second;
     return ret;
   }
@@ -131,6 +136,8 @@ class ModuleFactory {
  * @class ModuleCreatorWorker
  *
  * @brief ModuleCreatorWorker is class as a dynamic-creator helper.
+ *        ModuleCreatorWorker目前来看没有啥用，只是对ModuleFactory的创建做了简单的调用，后续可能会用来做装饰器类似功能，如
+ *        用来添加日志等。
  *
  * @note  ModuleCreator, ModuleFactory, and ModuleCreatorWorker:
  *        Implements reflection mechanism to create a module instance dynamically with the ``ModuleClassName`` and
@@ -175,16 +182,19 @@ class ModuleCreator {
       szDemangleName = abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, nullptr);
 #else
       // in this format?:     szDemangleName =  typeid(T).name();
+      // 获取模版类型实例化后的具体类型名称
       szDemangleName = abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, nullptr);
 #endif
       if (nullptr != szDemangleName) {
         strTypeName = szDemangleName;
         free(szDemangleName);
       }
+      // 注册时绑定特定类型名称和其工厂函数确保了类型安全。(具体的类一定是Moudule或其子类，否则Register调用会报错)
       ModuleFactory::Instance()->Register(strTypeName, CreateObject);
     }
     inline void do_nothing() const {}
   };
+  
   /**
    * @brief Constructor. A constructor to construct module creator.
    *
@@ -202,6 +212,7 @@ class ModuleCreator {
    * @return None.
    */
   virtual ~ModuleCreator() { register_.do_nothing(); }
+  
   /**
    * @brief Creates an instance of template (T) with specified instance name. This is a template function.
    *
@@ -210,9 +221,11 @@ class ModuleCreator {
    * @return Returns the instance of template (T).
    */
   static T *CreateObject(const std::string &name) { return new (std::nothrow) T(name); }
+  
   static Register register_;
 };
 
+// TODO: 这里定义静态成员变量似乎没啥用吧？至少这个工程应该是没有用到
 template <typename T>
 typename ModuleCreator<T>::Register ModuleCreator<T>::register_;
 
@@ -232,8 +245,9 @@ class IdxManager {
  private:
   std::mutex id_lock;
   std::map<std::string, uint32_t> stream_idx_map;
+  // stream最大路数未kMaxStreamNum，stream_bitset记录stream占用情况
   std::bitset<kMaxStreamNum> stream_bitset;
-  uint64_t module_id_mask_ = 0;
+  uint64_t module_id_mask_ = 0; // 记录id是否被占用,最大支持64个module
 };  // class IdxManager
 
 }  // namespace cnstream

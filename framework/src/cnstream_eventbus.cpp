@@ -42,6 +42,7 @@ bool EventBus::Start() {
 void EventBus::Stop() {
   if (IsRunning()) {
     running_.store(false);
+    // 如果线程在运行，等待线程运行结束
     if (event_thread_.joinable()) {
       event_thread_.join();
     }
@@ -83,7 +84,7 @@ bool EventBus::PostEvent(Event event) {
 
 Event EventBus::PollEvent() {
   Event event;
-  event.type = EventType::EVENT_INVALID;
+  event.type = EventType::EVENT_INVALID; // pop成功将覆盖该字段的值
   while (running_.load()) {
     if (queue_.WaitAndTryPop(event, std::chrono::milliseconds(100))) {
       break;

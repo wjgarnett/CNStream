@@ -32,15 +32,18 @@ static std::mutex s_eos_lock_;
 static std::map<std::string, std::atomic<bool>> s_stream_eos_map_;
 
 static RwLock s_remove_lock_;
+// TODO:这个map记录各stream_id是否可用还是是否移除呢？
 static std::map<std::string, bool> s_stream_removed_map_;
 
 bool CheckStreamEosReached(const std::string &stream_id, bool sync) {
+  // 同步模式(sync=true)时，当stream_id在s_stream_eos_map_中且为非eos状态会一直循环等待其状态为eos
   if (sync) {
     while (1) {
       std::this_thread::sleep_for(std::chrono::milliseconds(20));
       std::lock_guard<std::mutex> guard(s_eos_lock_);
       auto iter = s_stream_eos_map_.find(stream_id);
       if (iter != s_stream_eos_map_.end()) {
+        // stream_id对应流为eos状态从map中将其移除
         if (iter->second == true) {
           s_stream_eos_map_.erase(iter);
           LOGI(CORE) << "check stream eos reached, stream_id =  " << stream_id;
@@ -64,6 +67,11 @@ bool CheckStreamEosReached(const std::string &stream_id, bool sync) {
   }
 }
 
+/**
+ * 逻辑梳理：
+ *  1.如果s_stream_removed_map_包含stream_id这个key且value为false时删除该key-value对。
+ *  2.除1以外的其他情况则执行：s_stream_removed_map_[stream_id] = value
+ */
 void SetStreamRemoved(const std::string &stream_id, bool value) {
   RwLockWriteGuard guard(s_remove_lock_);
   auto iter = s_stream_removed_map_.find(stream_id);
@@ -79,6 +87,7 @@ void SetStreamRemoved(const std::string &stream_id, bool value) {
   // LOGI(CORE) << "_____SetStreamRemoved " << stream_id << ":" << s_stream_removed_map_[stream_id];
 }
 
+// 检查stream_id对应流状态
 bool IsStreamRemoved(const std::string &stream_id) {
   RwLockReadGuard guard(s_remove_lock_);
   auto iter = s_stream_removed_map_.find(stream_id);
@@ -126,16 +135,27 @@ CNFrameInfo::~CNFrameInfo() {
 }
 CNS_IGNORE_DEPRECATED_POP
 
+/**
+ * @brief 这里将data无需经过的module对应位设置为1, pipeline中不存在的module对应位设置为0，pipleline中data需要流向的module
+ *  对应位设置为0.
+ * 
+ * @example [framework中为64位长，这里用8位做示例]
+ *  pipieline所有模块构成的mask: all_modules_mask= 00101101
+ *  graph中的某一个head/root node对应的mask: route_mask = 00001100
+ *  流过该head/root node后对应的modules_mask = all_modules_mask ^ route_mask (即：00100001)
+ */
 void CNFrameInfo::SetModulesMask(uint64_t mask) {
   RwLockWriteGuard guard(mask_lock_);
   modules_mask_ = mask;
 }
 
 uint64_t CNFrameInfo::GetModulesMask() {
+  // 加锁主要是当data同时被多条支路的module处理时存在线程不安全问题
   RwLockReadGuard guard(mask_lock_);
   return modules_mask_;
 }
 
+// NOTE: 标记data已流过对应module
 uint64_t CNFrameInfo::MarkPassed(Module *module) {
   RwLockWriteGuard guard(mask_lock_);
   modules_mask_ |= (uint64_t)1 << module->GetId();

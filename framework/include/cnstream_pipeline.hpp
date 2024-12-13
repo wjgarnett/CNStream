@@ -49,16 +49,24 @@
 
 namespace cnstream {
 
-class Connector;
-struct NodeContext;
+/**
+ * 类的前置声明 vs #include "xxx.hpp":
+ *  1.前置声明的使用可以减少头文件的依赖，避免不必要的类实现被包含，从而提高编译效率，减少编译时间，降低代码耦合度。
+ *  2.当前仅当只使用指针或引用时，优选使用前置声明。
+ *  3.如实现文件需要用到则需要在xxx.cpp文件中包含该头文件。 
+ */
+class Connector; // 当前头文件似乎没有用到该类相关
+struct NodeContext; // framework\src\cnstream_pipeline.cpp
 template <typename T>
 class CNGraph;
-class IdxManager;
+class IdxManager; // framework\include\private\cnstream_module_pri.hpp
 
 /**
  * @enum StreamMsgType
  *
  * @brief Enumeration variables describing the data stream message type.
+ * 
+ * （视频流相关拉取结果状态定义）
  */
 enum class StreamMsgType {
   EOS_MSG = 0,    /*!< The end of a stream message. The stream has received EOS message in all modules. */
@@ -81,6 +89,8 @@ enum class StreamMsgType {
  * @struct StreamMsg
  *
  * @brief The StreamMsg is a structure holding the information of a stream message.
+ * 
+ *        封装完整的视频流状态消息结构体
  *
  * @see StreamMsgType.
  */
@@ -99,7 +109,7 @@ struct StreamMsg {
  * StreamMsgObserver class and call the ``Update`` function. The
  * observer instance is bounded to the pipeline using the Pipeline::SetStreamMsgObserver function .
  * 
- * StreamMsgObserver是pipeline的观察者
+ * StreamMsgObserver是pipeline的观察者,通过void Pipeline::SetStreamMsgObserver(StreamMsgObserver* observer)绑定
  *
  * @see Pipeline::SetStreamMsgObserver StreamMsg StreamMsgType.
  */
@@ -107,7 +117,8 @@ class StreamMsgObserver {
  public:
   /**
    * @brief Receives stream messages from a pipeline passively.
-   * 常用来pipeline跑完了或者遇到错误了发消息给应用层
+   * 
+   * 常用于当pipeline跑完了或者遇到错误时发送消息给应用层
    *
    * @param[in] msg The stream message from a pipeline.
    *
@@ -156,7 +167,7 @@ class Pipeline : private NonCopyable {
    */
   const std::string& GetName() const;
 
-  // 创建pipeline的三种方式：1.模块配置 2.图配置 3.json配置文件
+  // 创建pipeline的三种方式：1.模块配置 & profiler配置 2.图配置 3.json配置文件
   /**
    * @brief Builds a pipeline by module configurations.
    *
@@ -257,6 +268,8 @@ class Pipeline : private NonCopyable {
   /**
    * @brief Provides data for the pipeline that is used in source module or the module transmitted by itself.
    *
+   * 向head节点送数据（head节点无Connector实例，其数据通常通过rtsp流直接拉取）
+   *
    * @param[in] module The module that provides data.
    * @param[in] data The data that is transmitted to the pipeline.
    *
@@ -275,6 +288,7 @@ class Pipeline : private NonCopyable {
    *
    * @return Returns the event bus.
    */
+  // QUESTION: EventBus拿来传递什么类型的消息呢？具体有什么意图啊？
   EventBus* GetEventBus() const;
   
   /**
@@ -364,6 +378,7 @@ class Pipeline : private NonCopyable {
   void StreamMsgHandleFunc();
   std::vector<std::string> GetSortedModuleNames();
 
+  // 节点为NodeContext类型的DAG图实例
   std::unique_ptr<CNGraph<NodeContext>> graph_;
   std::vector<std::string> sorted_module_names_;
 
@@ -372,7 +387,7 @@ class Pipeline : private NonCopyable {
   std::unique_ptr<EventBus> event_bus_ = nullptr;
 
   std::unique_ptr<IdxManager> idxManager_ = nullptr;
-  std::vector<std::thread> threads_;
+  std::vector<std::thread> threads_; // Pipeline示例开启的所有线程
 
   // message observer members
   ThreadSafeQueue<StreamMsg> msgq_;

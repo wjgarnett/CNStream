@@ -77,10 +77,14 @@ std::pair<std::vector<int>, std::vector<int>> DAGAlgorithm::TopoSort() const {
   return std::make_pair(std::move(sorted_vertices), std::move(unsorted_vertices));
 }
 
+/**
+ * 将DAG中所有head节点入栈，并将栈中第一个head节点标记为已访问，后续通过节点的领接表取相应的顶点即可实现深度优先搜索
+ */
 DAGAlgorithm::DFSIterator DAGAlgorithm::DFSBegin() const {
   DFSIterator iter(this);
   iter.visit_.resize(edges_.size(), false);
   auto heads = GetHeads();
+  // 将所有head节点入栈并将栈顶节点设置为可访问状态
   for (auto head : heads) iter.vertex_stack_.push(head);
   if (!iter.vertex_stack_.empty()) iter.visit_[iter.vertex_stack_.top()] = true;
   return iter;
@@ -99,6 +103,7 @@ DAGAlgorithm::DFSIterator& DAGAlgorithm::DFSIterator::operator++() {
   while (!vertex_stack_.empty()) {
     auto cur_vertex = vertex_stack_.top();
     if (!visit_[cur_vertex]) break;  // for multiple heads
+    // 检查该节点领接表中其他节点是否已被访问，若存在未被访问的节点就将其压入栈中，若不存在则将该节点出栈
     const auto& edges = dag_->edges_[cur_vertex];
     auto edge_iter = edges.begin();
     for (; edge_iter != edges.end(); ++edge_iter) {
@@ -111,11 +116,13 @@ DAGAlgorithm::DFSIterator& DAGAlgorithm::DFSIterator::operator++() {
       break;
     }
   }
+  // 将栈顶元素置为可访问状态
   if (!vertex_stack_.empty()) visit_[vertex_stack_.top()] = true;
   return *this;
 }
 
 bool DAGAlgorithm::DFSIterator::operator==(const DAGAlgorithm::DFSIterator& other) const {
+  // QUESTION: 不应该保证vertex_stack_中所有元素都一致吗？
   return dag_ == other.dag_ && vertex_stack_.size() == other.vertex_stack_.size() &&
          (vertex_stack_.size() ? vertex_stack_.top() == other.vertex_stack_.top() : true);
 }

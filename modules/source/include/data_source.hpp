@@ -56,7 +56,7 @@ struct DataSourceParam {
  *
  * @note It is always the first module in a pipeline.
  * 
- * Q: DataSource作为首个模块，如何像下游模块传递数据呢？
+ * Q: DataSource作为首个模块，如何向下游模块传递数据呢？
  */
 class DataSource : public SourceModule, public ModuleCreator<DataSource> {
  public:
