@@ -199,6 +199,7 @@ bool CNModuleConfig::ParseByJSONStr(const std::string& jstr) {
                  << "cnstream as the directory where the configuration file is located and passed to the module.";
     }
 
+    // CNS_JSON_DIR_PARAM_NAME-->config_root_dir放入map<string, string>中的目的主要是为了做个标记
     this->parameters[CNS_JSON_DIR_PARAM_NAME] = config_root_dir;
   } else {
     this->parameters = {};

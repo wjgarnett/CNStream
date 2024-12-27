@@ -53,6 +53,7 @@ Inferencer::Inferencer(const std::string& name) : ModuleEx(name) {
   param_register_.SetModuleDesc(
       "Inferencer is a module for running offline model inference, preprocessing and "
       "postprocessing based on infer_server.");
+  // 重置智能指针param_helper_的指向
   param_helper_.reset(new (std::nothrow) ModuleParamsHelper<InferParams>(name));
   // regist param
 
@@ -236,8 +237,8 @@ Inferencer::Inferencer(const std::string& name) : ModuleEx(name) {
        ModuleParamParser<std::string>::VectorParser, "std::vector<string>"},
 
       {"preproc", "",
-       "Required. Parameters related to postprocessing including name and use_cpu."
-       "name : Required. The class name for postprocess. The class specified by this name "
+       "Required. Parameters related to preprocessing including name and use_cpu."
+       "name : Required. The class name for preprocess. The class specified by this name "
        "must inherit from class cnstream::Preproc."
        "use_cpu : Optional, default true.",
        PARAM_REQUIRED, 0, preproc_parser, "PreProcParam"},
@@ -382,6 +383,7 @@ bool Inferencer::Open(ModuleParamSet raw_params) {
   desc.postproc = infer_server::Postprocessor::Create();
   infer_server::SetPostprocHandler(desc.model->GetKey(), this);
 
+  // 将Inferencer::OnProcessDone设为观察者类的回调函数，当推理完成时会自动调用Inferencer::OnProcessDone实现数据传输
   observer_ = std::make_shared<InferObserver>(std::bind(&Inferencer::OnProcessDone, this, std::placeholders::_1));
   session_ = server_->CreateSession(desc, observer_);
   if (!session_) return false;

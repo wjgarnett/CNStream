@@ -56,6 +56,7 @@ uint64_t Conveyor::GetFailTime() {
 CNFrameInfoPtr Conveyor::PopDataBuffer() {
   std::unique_lock<std::mutex> lk(data_mutex_);
   CNFrameInfoPtr data = nullptr;
+  // notempty_cond_.wait_for()条件满足时会重新获取到互斥锁并返回true,条件不满足时会自动释放互斥锁并返回false.
   if (notempty_cond_.wait_for(lk, rel_time_, [&] { return !dataq_.empty(); })) {
     data = dataq_.front();
     dataq_.pop();

@@ -57,8 +57,8 @@
  *   示例：
  *      ./pro --data_path /path/to/video_files.txt
  */
-DEFINE_string(data_path, "", "video file list.");
-DEFINE_string(data_name, "", "video file name.");
+DEFINE_string(data_path, "", "video file list."); // 批量测多个视频文件
+DEFINE_string(data_name, "", "video file name."); // 用来测单个视频文件
 DEFINE_int32(src_frame_rate, 25, "frame rate for send data");
 DEFINE_int32(codec_id_start, 0, "vdec/venc first id, for CE3226 only");
 DEFINE_int32(maximum_width, -1, "maximum width, for variable video resolutions and Jpeg decoding");
@@ -255,6 +255,7 @@ class CnsPipeline : public cnstream::Pipeline, public cnstream::StreamMsgObserve
       if (nullptr != source_) {
         source_->RemoveSources(true);
       }
+      // QUESTION: 这里等待的意义是啥呢？10ms后即使stop_没有被置为true也会继续往下执行
       wakener_.wait_for(lk, std::chrono::seconds(10), [this]() { return stop_.load(); });
     }
     this->Stop();

@@ -103,7 +103,7 @@ DAGAlgorithm::DFSIterator& DAGAlgorithm::DFSIterator::operator++() {
   while (!vertex_stack_.empty()) {
     auto cur_vertex = vertex_stack_.top();
     if (!visit_[cur_vertex]) break;  // for multiple heads
-    // 检查该节点领接表中其他节点是否已被访问，若存在未被访问的节点就将其压入栈中，若不存在则将该节点出栈
+    // 检查该节点邻接表中其他节点是否已被访问，若存在未被访问的节点就将其压入栈中，若不存在则将该节点出栈
     const auto& edges = dag_->edges_[cur_vertex];
     auto edge_iter = edges.begin();
     for (; edge_iter != edges.end(); ++edge_iter) {
@@ -113,7 +113,7 @@ DAGAlgorithm::DFSIterator& DAGAlgorithm::DFSIterator::operator++() {
       vertex_stack_.pop();
     } else {
       vertex_stack_.push(*edge_iter);
-      break;
+      break; // 只要有一个邻接边的对应节点未被访问则直接跳出while循环
     }
   }
   // 将栈顶元素置为可访问状态

@@ -38,6 +38,7 @@
 #include "cnstream_config.hpp"
 #include "cnstream_logging.hpp"
 
+// OFFSET宏计算结构体成员相对于结构体开头的偏移量
 #define OFFSET(S, M) (size_t) & (((S*)0)->M)  // NOLINT
 #define PARAM_OPTIONAL 0
 #define PARAM_REQUIRED 1
@@ -49,6 +50,14 @@ namespace cnstream {
  * @struct ModuleParamDesc
  *
  * @brief The ModuleParamDesc is a structure describing a parameter.
+ * 
+ * @note parser参数及返回值说明： 
+ *  bool parser(
+ *    const std::map<std::string, std::string>&,  // js文件获取的module参数
+ *    const std::string&,                         // 参数字段名称
+ *    const std::string&,                         // 参数字段对应的string类型值（json文件传入/缺省值）
+ *    void*                                       // 该字段解析结果写入的内存地址
+ *  )
  */
 typedef struct ModuleParamDesc {
   std::string name;          /*!< The name of this parameter. */
@@ -273,8 +282,11 @@ class ModuleParamsHelper {
    *
    * @return Returns true if parameter has register successfully. Returns false if parameter
    *         register failed.
+   * 
+   * @note 先做参数检查，再通过调用IRegisterParam完成参数注册
    */
   bool Register(const ModuleParamDesc& param_desc, ParamRegister* param_register = nullptr) {
+    // 缺省调用时也ok
     if (param_register) {
       param_register_ = param_register;
     }
@@ -303,6 +315,7 @@ class ModuleParamsHelper {
     p_desc->str_desc = param_desc.str_desc;
     params_desc_[name] = p_desc;
     if (param_register_ && p_desc->optional != PARAM_DEPRECATED) {
+      // 弃用的参数不会被注册，但是会存到params_desc_中（部分字段）
       IRegisterParam(*p_desc.get());
     }
     registered_ = true;
@@ -311,10 +324,15 @@ class ModuleParamsHelper {
   /**
    * @brief Parse parameters.
    *
-   * @param[in] params A map contains parameter names and user set parameter values.
+   * @param[in] params A map contains parameter names and user set parameter values.(从json文件传进来的key-value)
    *
    * @return Returns true if parameters have parse successfully. Returns false if parameters
    *         parse failed.
+   * 
+   * @note 逻辑梳理：
+   *          1. 弃用的参数字段直接忽略解析
+   *          2. 必须字段一定得通过json文件传入
+   *          3. 可选字段若json传入则使用json传入的值，若不传入则使用默认值
    */
   bool ParseParams(const std::map<std::string, std::string>& params) {
     if (!registered_) {
@@ -323,7 +341,12 @@ class ModuleParamsHelper {
     }
 
     std::map<std::string, std::string> map = params;
+    
+    // std::map<std::string, std::shared_ptr<ModuleParamDesc>>------it: pair<string, std::shared_ptr<ModuleParamDesc>>
+    // std::map<std::string, std::string>--------iter: pair<string, string> 
+    // 从params中解析对应的参数并将其值赋给params_中的对应字段（params_是模板类型的变量，对应每个module所需要的参数）
     for (auto& it : params_desc_) {
+      // 弃用的参数字段直接忽略解析
       if (it.second->optional == PARAM_DEPRECATED) {
         continue;
       }
@@ -345,9 +368,12 @@ class ModuleParamsHelper {
         return false;
       }
     }
+
+    // 删除map中已经更新过的字段，检查map是否只剩下标记字段CNS_JSON_DIR_PARAM_NAME
     for (auto& it : params_desc_) {
       auto iter = map.find(it.first);
       if (iter != map.end()) {
+        // 弃用字段日志警告信息打印，用来给用户提示信息
         if (it.second->optional == PARAM_DEPRECATED) {
           LOGW(CORE) << "[ModuleParam]: " << it.first << " is a deprecated parameter. " << it.second->str_desc;
         }
@@ -361,6 +387,7 @@ class ModuleParamsHelper {
         flag = false;
       }
     }
+    
     init_ = true;
     return flag;
   }
@@ -380,6 +407,7 @@ class ModuleParamsHelper {
       param_register_->Register(param_desc.name, desc);
       return true;
     }
+    // 其实framework/module也没有调用这个接口呢，而是通过Register函数设置param_register_
     LOGE(CORE) << "you should call SetRegister before registing parameters.";
     return false;
   }

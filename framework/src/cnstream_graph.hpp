@@ -704,6 +704,7 @@ bool CNGraph<T>::Init() {
   FindHeadsAndTails();
 
   // check circle
+  // why???
   auto topo_result = dag_algorithm_.TopoSort();
   if (topo_result.second.size()) {
     LOGE(CORE) << GetLogPrefix() + "Ring detected.";
@@ -929,6 +930,8 @@ bool CNGraph<T>::AddVertex(const CNSubgraphConfig& config) {
   return true;
 }
 
+// ModuleNode和SubgraphNode在图中dag_algorithm_中都是一个标识为int的顶点，这里的AddEdge是以此方式来做的抽象。而在
+//  modulea.second->next_中则需要指明其具体与subgraphb中的哪些节点相连接。
 template <typename T>
 inline void CNGraph<T>::AddEdge(const ModuleNode& modulea, const SubgraphNode& subgraphb) {
   modulea.second->next_.insert(std::get<2>(subgraphb)->GetHeads().begin(), std::get<2>(subgraphb)->GetHeads().end());

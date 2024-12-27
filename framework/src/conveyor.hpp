@@ -44,6 +44,8 @@ class Connector;
  * The capacity of buffer queue could be set in configuration json file (see README for more information of
  * configuration json file). If there is no element in buffer queue, the downstream node will wait to pop and
  * be blocked. On contrary, if the queue is full, the upstream node will wait to push and be blocked.
+ * 
+ * @todo 这里写成模版类更为通用
  */
 class Conveyor : private NonCopyable {
  public:

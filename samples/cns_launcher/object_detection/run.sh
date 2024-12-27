@@ -9,6 +9,9 @@
 # @notice: other flags see ${SAMPLES_DIR}/bin/cns_launcher --help
 #          when USB camera is the input source, please add 'usb' as the third parameter
 #************************************************************************************#
+
+# BASH_SOURCE[0]指当前文件的完整路径名，cd $(dirname ${BASH_SOURCE[0]})则是进入该文件名所在路径。下面这行脚本可以确保脚本
+# 在任何路径运行都能找到脚本所在的绝对路径。
 CURRENT_DIR=$(cd $(dirname ${BASH_SOURCE[0]});pwd)
 
 source ${CURRENT_DIR}/../../env.sh
@@ -19,11 +22,13 @@ PrintUsages(){
 
 ${SAMPLES_DIR}/generate_file_list.sh
 
+# # 是表示脚本传入的参数数量。$# 获取参数的数量。
 if [[ $# != 3 ]];then
     PrintUsages
     exit 1
 fi
 
+# 检查第三个参数的合法性
 if [[ ${3} != "yolov3" && ${3} != "yolov5" ]]; then
     PrintUsages
     exit 1
@@ -89,6 +94,7 @@ if [[ ! -f ${LABEL_PATH} ]]; then
 fi
 
 # generate config file with selected sinker
+# 使用sed命令替换config_template.json中的占位符
 pushd ${CURRENT_DIR}
     sed 's/__PLATFORM_PLACEHOLDER__/'"${1}"'/g;s/__SINKER_PLACEHOLDER__/'"${2}"'/g;s/__NN__/'"${3}"'/g' config_template.json &> config.json
 popd

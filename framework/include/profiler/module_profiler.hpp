@@ -38,8 +38,8 @@
  */
 namespace cnstream {
 
-static constexpr char kPROCESS_PROFILER_NAME[] = "PROCESS";
-static constexpr char kINPUT_PROFILER_NAME[] = "INPUT_QUEUE";
+static constexpr char kPROCESS_PROFILER_NAME[] = "PROCESS"; // 数据被模块处理的性能分析
+static constexpr char kINPUT_PROFILER_NAME[] = "INPUT_QUEUE"; // 数据被送到队列到出队开始被处理的性能分析
 
 class PipelineTracer;
 
